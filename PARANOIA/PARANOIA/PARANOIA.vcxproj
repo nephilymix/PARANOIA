@@ -136,6 +136,7 @@
   <ItemGroup>
     <ClCompile Include="project\core\features\impl\combat\legit.cpp" />
     <ClCompile Include="project\core\features\impl\combat\shared.cpp" />
+    <ClCompile Include="project\core\features\impl\esp\chams.cpp" />
     <ClCompile Include="project\core\features\impl\esp\item.cpp" />
     <ClCompile Include="project\core\features\impl\esp\player.cpp" />
     <ClCompile Include="project\core\features\impl\esp\projectile.cpp" />
@@ -290,6 +291,7 @@
     <ClInclude Include="project\utilities\cstypes.hpp" />
     <ClInclude Include="project\utilities\fnv1a.hpp" />
     <ClInclude Include="project\utilities\input\input.hpp" />
+    <ClInclude Include="project\utilities\json.hpp" />
     <ClInclude Include="project\utilities\math\math.hpp" />
     <ClInclude Include="project\utilities\memory\driver.hpp" />
     <ClInclude Include="project\utilities\memory\memory.hpp" />

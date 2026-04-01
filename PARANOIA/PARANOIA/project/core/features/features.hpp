@@ -215,6 +215,111 @@ namespace features {
 			[[nodiscard]] zdraw::rgba lerp_color( const zdraw::rgba& a, const zdraw::rgba& b, float t ) const;
 		};
 
+		struct bone_matrix_3x4_t {
+			float m[3][4];
+
+			void to_4x4(float out[16]) const {
+				out[0] = m[0][0]; out[1] = m[0][1]; out[2] = m[0][2]; out[3] = m[0][3];
+				out[4] = m[1][0]; out[5] = m[1][1]; out[6] = m[1][2]; out[7] = m[1][3];
+				out[8] = m[2][0]; out[9] = m[2][1]; out[10] = m[2][2]; out[11] = m[2][3];
+				out[12] = 0.f;     out[13] = 0.f;     out[14] = 0.f;     out[15] = 1.f;
+			}
+
+			bone_matrix_3x4_t multiply(const bone_matrix_3x4_t& other) const {
+				bone_matrix_3x4_t out{};
+				for (int i = 0; i < 3; i++) {
+					out.m[i][0] = m[i][0] * other.m[0][0] + m[i][1] * other.m[1][0] + m[i][2] * other.m[2][0];
+					out.m[i][1] = m[i][0] * other.m[0][1] + m[i][1] * other.m[1][1] + m[i][2] * other.m[2][1];
+					out.m[i][2] = m[i][0] * other.m[0][2] + m[i][1] * other.m[1][2] + m[i][2] * other.m[2][2];
+					out.m[i][3] = m[i][0] * other.m[0][3] + m[i][1] * other.m[1][3] + m[i][2] * other.m[2][3] + m[i][3];
+				}
+				return out;
+			}
+
+			bool valid() const {
+				return std::isfinite(m[0][3]) && std::isfinite(m[1][3]) && std::isfinite(m[2][3]);
+			}
+
+			static bone_matrix_3x4_t identity() {
+				bone_matrix_3x4_t out{};
+				out.m[0][0] = 1.f; out.m[1][1] = 1.f; out.m[2][2] = 1.f;
+				return out;
+			}
+		};
+
+		struct mesh_vertex_t {
+			math::vector3 position;
+			math::vector3 normal;
+			std::array<uint16_t, 4> joint_indices;
+			std::array<float, 4> weights;
+		};
+
+		struct skinned_mesh_t {
+			std::vector<mesh_vertex_t> vertices;
+			std::vector<uint32_t> indices;
+			std::vector<bone_matrix_3x4_t> inverse_bind_matrices;
+			std::vector<int16_t> gltf_to_game_bone_map;
+
+			ID3D11Buffer* gpu_vertex_buffer{ nullptr };
+			ID3D11Buffer* gpu_index_buffer{ nullptr };
+			uint32_t index_count{ 0 };
+			uint32_t vertex_count{ 0 };
+
+			void release() {
+				if (gpu_vertex_buffer) { gpu_vertex_buffer->Release(); gpu_vertex_buffer = nullptr; }
+				if (gpu_index_buffer) { gpu_index_buffer->Release(); gpu_index_buffer = nullptr; }
+			}
+		};
+
+		struct draw_command_t {
+			skinned_mesh_t* mesh;
+			std::vector<bone_matrix_3x4_t> combined_matrices;
+			zdraw::rgba fill_color;
+			zdraw::rgba wire_color;
+			float alpha;
+			int render_mode;
+			int material_type;
+		};
+
+		class c_mesh_renderer {
+		public:
+			bool initialize(ID3D11Device* device, ID3D11DeviceContext* context, const std::string& mesh_path);
+			void shutdown();
+
+			// Optimized to use already cached bones
+			void render_player(const systems::bones::data& bones, const settings::esp::player::chams& cfg);
+			void flush();
+			bool is_ready() const { return m_ready; }
+
+		private:
+			std::vector<bone_matrix_3x4_t> convert_cached_bones(const systems::bones::data& bones, int needed_count);
+
+			skinned_mesh_t m_mesh;
+			bool m_ready{ false };
+
+			ID3D11Device* m_device{ nullptr };
+			ID3D11DeviceContext* m_context{ nullptr };
+
+			ID3D11VertexShader* m_vs{ nullptr };
+			ID3D11PixelShader* m_ps_fill{ nullptr };
+			ID3D11PixelShader* m_ps_wire{ nullptr };
+			ID3D11InputLayout* m_layout{ nullptr };
+			ID3D11Buffer* m_cb_vp{ nullptr };
+			ID3D11Buffer* m_cb_bones{ nullptr };
+			ID3D11Buffer* m_cb_mat{ nullptr };
+			ID3D11RasterizerState* m_rs_fill{ nullptr };
+			ID3D11RasterizerState* m_rs_wire{ nullptr };
+			ID3D11BlendState* m_blend{ nullptr };
+			ID3D11DepthStencilState* m_depth{ nullptr };
+
+			std::vector<draw_command_t> m_draws;
+
+			bool load_glb(const std::string& path);
+			bool setup_gpu();
+			bool upload_mesh();
+		};
+
+		inline c_mesh_renderer g_mesh_renderer;
 		inline player g_player{};
 		inline item g_item{};
 		inline projectile g_projectile{};

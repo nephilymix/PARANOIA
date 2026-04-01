@@ -110,6 +110,17 @@ namespace settings {
 				zdraw::rgba occluded_color{ 130, 135, 180, 180 };
 			} m_skeleton{};
 
+			struct chams
+			{
+				bool enabled{ false };
+				bool wireframe{ false };
+				int material_type{ 0 }; // 0 = flat, 1 = shaded, 2 = glow
+				float alpha{ 1.0f };
+
+				zdraw::rgba fill_color{ 140, 150, 235, 255 };
+				zdraw::rgba wire_color{ 255, 255, 255, 255 };
+			} m_chams{};
+
 			struct hitboxes
 			{
 				bool enabled{ false };

@@ -47,6 +47,7 @@
 #include <utilities/cstypes.hpp>
 #include <utilities/fnv1a.hpp>
 #include <utilities/random.hpp>
+#include <utilities/json.hpp>
 
 // core
 #include <core/settings.hpp>

@@ -10,16 +10,27 @@ void features::misc::spectators::update() {
         return;
     }
 
-    const auto players = systems::g_collector.players();
+    // fetch all raw entities instead of using collector because collector skips dead players
+    const auto entities = systems::g_entities.all();
 
-    for (const auto& player : players) {
-        // Fix: Dead players might have a null/stale pawn in collector. 
-        // We must fetch the current pawn handle from the controller.
-        if (!player.controller) {
+    for (const auto& entry : entities) {
+        if (entry.type != systems::entities::type::player) {
             continue;
         }
 
-        const auto pawn_handle = g::memory.read<std::uint32_t>(player.controller + SCHEMA(ecrypt("CBasePlayerController"), "m_hPawn"_hash));
+        const auto controller = entry.ptr;
+        if (!controller) {
+            continue;
+        }
+
+        const auto pawn_handle = g::memory.read<std::uint32_t>(
+            controller + SCHEMA(ecrypt("CCSPlayerController"), "m_hPlayerPawn"_hash)
+        );
+
+        if (!pawn_handle) {
+            continue;
+        }
+
         const auto pawn = systems::g_entities.lookup(pawn_handle);
 
         if (!pawn || pawn == local_pawn) {
@@ -45,60 +56,20 @@ void features::misc::spectators::update() {
         const auto observer_target_pawn = systems::g_entities.lookup(observer_target_handle);
 
         if (observer_target_pawn == local_pawn) {
-            current_list.push_back(player.display_name);
+            // fetch name directly from controller
+            const auto name_ptr = g::memory.read<std::uintptr_t>(
+                controller + SCHEMA(ecrypt("CCSPlayerController"), "m_sSanitizedPlayerName"_hash)
+            );
+
+            if (name_ptr) {
+                current_list.push_back(g::memory.read_string(name_ptr, 128));
+            }
         }
     }
 
     std::lock_guard<std::mutex> lock(this->m_mutex);
     this->m_spectators = std::move(current_list);
 }
-/*
-
-void features::misc::spectators::update() {
-    std::vector<std::string> current_list;
-
-    const auto local_pawn = systems::g_local.pawn();
-    if (!local_pawn) {
-        std::lock_guard<std::mutex> lock(this->m_mutex);
-        this->m_spectators.clear();
-        return;
-    }
-
-    const auto players = systems::g_collector.players();
-
-    for (const auto& player : players) {
-        if (!player.pawn || player.pawn == local_pawn) {
-            continue;
-        }
-
-        const auto observer_services = g::memory.read<std::uintptr_t>(
-            player.pawn + SCHEMA(ecrypt("C_BasePlayerPawn"), "m_pObserverServices"_hash)
-        );
-
-        if (!observer_services) {
-            continue;
-        }
-
-        const auto observer_target_handle = g::memory.read<std::uint32_t>(
-            observer_services + SCHEMA(ecrypt("CPlayer_ObserverServices"), "m_hObserverTarget"_hash)
-        );
-
-        if (!observer_target_handle) {
-            continue;
-        }
-
-        const auto observer_target_pawn = systems::g_entities.lookup(observer_target_handle);
-
-        if (observer_target_pawn == local_pawn) {
-            current_list.push_back(player.display_name);
-        }
-    }
-
-    // safely update the shared spectator list
-    std::lock_guard<std::mutex> lock(this->m_mutex);
-    this->m_spectators = std::move(current_list);
-}
-*/
 
 void features::misc::spectators::render() {
     if (!settings::g_misc.m_spectators) {
@@ -111,17 +82,15 @@ void features::misc::spectators::render() {
         specs = this->m_spectators;
     }
 
-    if (specs.empty()) {
-        return;
-    }
-
     static float window_x = 25.0f;
     static float window_y = 200.0f;
 
     float window_w = 200.0f;
     const float header_h = 35.0f;
     const float item_h = 20.0f;
-    float window_h = header_h + (specs.size() * item_h);
+
+    float content_h = specs.empty() ? item_h : (specs.size() * item_h);
+    float window_h = header_h + content_h;
 
     if (window_h > 400.0f) {
         window_h = 400.0f;
@@ -132,9 +101,15 @@ void features::misc::spectators::render() {
 
         if (zui::begin_nested_window(ecrypt("##specs_inner"), avail_w, avail_h)) {
             const zdraw::rgba text_color{ 255, 75, 75, 255 };
+            const zdraw::rgba empty_color{ 150, 150, 150, 255 };
 
-            for (const auto& name : specs) {
-                zui::text_colored(name, text_color);
+            if (specs.empty()) {
+                zui::text_colored(ecrypt("no spectators"), empty_color);
+            }
+            else {
+                for (const auto& name : specs) {
+                    zui::text_colored(name, text_color);
+                }
             }
 
             zui::end_nested_window();
