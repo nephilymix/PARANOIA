@@ -49,6 +49,12 @@ namespace features::esp {
 				this->add_skeleton( bones, cfg.m_skeleton, player.is_visible );
 			}
 
+			if (cfg.m_chams.enabled)
+			{
+				// Pass existing bone data - avoiding redundant memory reads!
+				features::esp::g_mesh_renderer.render_player(bones, cfg.m_chams);
+			}
+
 			if ( cfg.m_hitboxes.enabled )
 			{
 				this->add_hitboxes( bones, player, cfg.m_hitboxes, current_time );

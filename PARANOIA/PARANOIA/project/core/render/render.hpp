@@ -15,6 +15,8 @@ public:
 	[[nodiscard]] HWND hwnd( ) const { return this->m_hwnd; }
 	[[nodiscard]] explicit operator bool( ) const { return this->m_hwnd != nullptr; }
 
+	ID3D11Device* device() const { return m_device; }
+	ID3D11DeviceContext* context() const { return m_context; }
 private:
 	void run( );
 	void update_input_window( );

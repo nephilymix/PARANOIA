@@ -120,6 +120,7 @@ void render::run()
                 features::misc::g_grenades.on_render();
                 features::combat::g_legit.on_render();
                 features::misc::g_spectators.render();
+                features::esp::g_mesh_renderer.flush();
             }
 
             g::menu.draw();
@@ -235,6 +236,8 @@ bool render::setup_d3d()
     g::console.print("[render] creating d3d11 device and swap chain...");
 
     HRESULT hr_device = pre_sys_D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_SINGLETHREADED | D3D11_CREATE_DEVICE_PREVENT_INTERNAL_THREADING_OPTIMIZATIONS, levels, 2, D3D11_SDK_VERSION, &desc, &this->m_swap_chain, &this->m_device, &selected, &this->m_context);
+
+    features::esp::g_mesh_renderer.initialize(this->m_device, this->m_context, "C:\\Path\\To\\ctm_sas.glb");
 
     if (FAILED(hr_device))
     {
