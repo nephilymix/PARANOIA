@@ -120,7 +120,7 @@ namespace systems {
 		[[nodiscard]] math::vector3 origin( ) const { return this->m_origin; }
 		[[nodiscard]] math::vector3 angles( ) const { return this->m_angles; }
 		[[nodiscard]] float fov( ) const { return this->m_fov; }
-
+		[[nodiscard]] const math::matrix4x4& get_matrix() const { return this->m_matrix; }
 	private:
 		static constexpr auto k_invalid{ 0xdead };
 
@@ -234,6 +234,7 @@ namespace systems {
 			std::uintptr_t bone_cache{};
 			math::vector3 origin{};
 			std::string display_name{};
+			std::string model_name{}; // added model name
 			weapon_info weapon{};
 			std::int32_t health{};
 			std::int32_t team{};

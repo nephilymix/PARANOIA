@@ -283,18 +283,23 @@ namespace features {
 
 		class c_mesh_renderer {
 		public:
-			bool initialize(ID3D11Device* device, ID3D11DeviceContext* context, const std::string& mesh_path);
+			bool initialize(ID3D11Device* device, ID3D11DeviceContext* context);
 			void shutdown();
 
-			// Optimized to use already cached bones
-			void render_player(const systems::bones::data& bones, const settings::esp::player::chams& cfg);
+			// load from byte array
+			bool load_mesh_from_memory(const std::string& key, const uint8_t* data, size_t size);
+
+			// pass player to check model_name
+			void render_player(const systems::collector::player& player, const systems::bones::data& bones, const settings::esp::player::chams& cfg);
 			void flush();
 			bool is_ready() const { return m_ready; }
 
 		private:
 			std::vector<bone_matrix_3x4_t> convert_cached_bones(const systems::bones::data& bones, int needed_count);
+			bool setup_gpu();
+			bool upload_mesh(skinned_mesh_t& mesh); // now accepts reference
 
-			skinned_mesh_t m_mesh;
+			std::unordered_map<std::string, skinned_mesh_t> m_meshes;
 			bool m_ready{ false };
 
 			ID3D11Device* m_device{ nullptr };
@@ -313,10 +318,6 @@ namespace features {
 			ID3D11DepthStencilState* m_depth{ nullptr };
 
 			std::vector<draw_command_t> m_draws;
-
-			bool load_glb(const std::string& path);
-			bool setup_gpu();
-			bool upload_mesh();
 		};
 
 		inline c_mesh_renderer g_mesh_renderer;

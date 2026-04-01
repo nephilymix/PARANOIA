@@ -77,7 +77,17 @@ namespace systems {
 				p.game_scene_node = game_scene_node;
 				p.bone_cache = g::memory.read<std::uintptr_t>( game_scene_node + SCHEMA(ecrypt("CSkeletonInstance"), "m_modelState"_hash ) + 0x80 );
 				p.origin = g::memory.read<math::vector3>( game_scene_node + SCHEMA(ecrypt("CGameSceneNode"), "m_vecAbsOrigin"_hash ) );
-
+				// extract model name
+				const auto model_state = game_scene_node + SCHEMA(ecrypt("CSkeletonInstance"), "m_modelState"_hash);
+				const auto model_handle = g::memory.read<std::uintptr_t>(model_state + SCHEMA(ecrypt("CModelState"), "m_hModel"_hash));
+				if (model_handle)
+				{
+					const auto name_ptr = g::memory.read<std::uintptr_t>(model_handle + 0x8);
+					if (name_ptr)
+					{
+						p.model_name = g::memory.read_string(name_ptr, 128);
+					}
+				}
 				{
 					const auto head = systems::g_bones.get( p.bone_cache ).get_position( 6 );
 					p.is_visible = !systems::g_bvh.trace_ray( systems::g_view.origin( ), head ).hit;

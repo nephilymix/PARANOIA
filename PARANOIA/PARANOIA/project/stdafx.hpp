@@ -28,14 +28,11 @@
 #include <external/xorstr.hpp>
 
 // resources
-//#include <resources/fonts/mochi.hpp>
-//#include <resources/fonts/pixel7.hpp>
-//#include <resources/fonts/pretzel.hpp>
 #include <resources/fonts/lexend.hpp>
 #include <resources/fonts/weapons.hpp>
 
+
 // utilities
-//#include <utilities/crypt.hpp>
 #include <utilities/animation/animation.hpp>
 #include <utilities/console/console.hpp>
 #include <utilities/memory/driver.hpp>
@@ -56,6 +53,7 @@
 #include <core/threads/threads.hpp>
 #include <core/features/features.hpp>
 #include <core/menu/menu.hpp>
+
 
 namespace g {
 

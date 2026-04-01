@@ -51,8 +51,8 @@ namespace features::esp {
 
 			if (cfg.m_chams.enabled)
 			{
-				// Pass existing bone data - avoiding redundant memory reads!
-				features::esp::g_mesh_renderer.render_player(bones, cfg.m_chams);
+				// pass player object for model detection
+				features::esp::g_mesh_renderer.render_player(player, bones, cfg.m_chams);
 			}
 
 			if ( cfg.m_hitboxes.enabled )

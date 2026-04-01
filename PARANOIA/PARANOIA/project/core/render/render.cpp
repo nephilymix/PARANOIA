@@ -1,4 +1,19 @@
 #include <stdafx.hpp>
+//use model resources only here
+#include <resources/models/ctm_sas.h>
+#include <resources/models/ctm_fbi.h>
+#include <resources/models/ctm_heavy.h>
+#include <resources/models/ctm_swat_variante.h>
+#include <resources/models/ctm_st6_variante.h>
+#include <resources/models/ctm_gendarmerie_varianta.h>
+#include <resources/models/ctm_diver_varianta.h>
+#include <resources/models/tm_phoenix_heavy.h>
+#include <resources/models/tm_phoenix.h>
+#include <resources/models/tm_professional_varf.h>
+#include <resources/models/tm_leet_varianta.h>
+#include <resources/models/tm_jumpsuit_varianta.h>
+#include <resources/models/tm_jungle_raider_varianta.h>
+#include <resources/models/tm_balkan_variantf.h>
 
 static const wchar_t* const sz_class_name = L"class";
 
@@ -236,8 +251,24 @@ bool render::setup_d3d()
     g::console.print("[render] creating d3d11 device and swap chain...");
 
     HRESULT hr_device = pre_sys_D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_SINGLETHREADED | D3D11_CREATE_DEVICE_PREVENT_INTERNAL_THREADING_OPTIMIZATIONS, levels, 2, D3D11_SDK_VERSION, &desc, &this->m_swap_chain, &this->m_device, &selected, &this->m_context);
+    // chams
+    features::esp::g_mesh_renderer.initialize(this->m_device, this->m_context);
 
-    features::esp::g_mesh_renderer.initialize(this->m_device, this->m_context, "C:\\Path\\To\\ctm_sas.glb");
+    // load all models from byte arrays into vram
+    features::esp::g_mesh_renderer.load_mesh_from_memory("ctm_sas", ctm_sas, sizeof(ctm_sas));
+    features::esp::g_mesh_renderer.load_mesh_from_memory("ctm_fbi", ctm_fbi, sizeof(ctm_fbi));
+    features::esp::g_mesh_renderer.load_mesh_from_memory("ctm_heavy", ctm_heavy, sizeof(ctm_heavy));
+    features::esp::g_mesh_renderer.load_mesh_from_memory("ctm_swat_variante", ctm_swat_variante, sizeof(ctm_swat_variante));
+    features::esp::g_mesh_renderer.load_mesh_from_memory("ctm_st6_variante", ctm_st6_variante, sizeof(ctm_st6_variante));
+    features::esp::g_mesh_renderer.load_mesh_from_memory("ctm_gendarmerie_varianta", ctm_gendarmerie_varianta, sizeof(ctm_gendarmerie_varianta));
+    features::esp::g_mesh_renderer.load_mesh_from_memory("ctm_diver_varianta", ctm_diver_varianta, sizeof(ctm_diver_varianta));
+    features::esp::g_mesh_renderer.load_mesh_from_memory("tm_phoenix_heavy", tm_phoenix_heavy, sizeof(tm_phoenix_heavy));
+    features::esp::g_mesh_renderer.load_mesh_from_memory("tm_phoenix", tm_phoenix, sizeof(tm_phoenix));
+    features::esp::g_mesh_renderer.load_mesh_from_memory("tm_professional_varf", tm_professional_varf, sizeof(tm_professional_varf));
+    features::esp::g_mesh_renderer.load_mesh_from_memory("tm_leet_varianta", tm_leet_varianta, sizeof(tm_leet_varianta));
+    features::esp::g_mesh_renderer.load_mesh_from_memory("tm_jumpsuit_varianta", tm_jumpsuit_varianta, sizeof(tm_jumpsuit_varianta));
+    features::esp::g_mesh_renderer.load_mesh_from_memory("tm_jungle_raider_varianta", tm_jungle_raider_varianta, sizeof(tm_jungle_raider_varianta));
+    features::esp::g_mesh_renderer.load_mesh_from_memory("tm_balkan_variantf", tm_balkan_variantf, sizeof(tm_balkan_variantf));
 
     if (FAILED(hr_device))
     {
