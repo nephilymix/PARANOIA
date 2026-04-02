@@ -23,15 +23,19 @@ void features::misc::spectators::update() {
             continue;
         }
 
-        const auto pawn_handle = g::memory.read<std::uint32_t>(
+        auto pawn_handle = g::memory.read<std::uint32_t>(
             controller + SCHEMA(ecrypt("CCSPlayerController"), "m_hPlayerPawn"_hash)
         );
 
-        if (!pawn_handle) {
-            continue;
-        }
+        auto pawn = systems::g_entities.lookup(pawn_handle);
 
-        const auto pawn = systems::g_entities.lookup(pawn_handle);
+        // fix: if player is dead, their m_hPlayerPawn is invalid, engine assigns them an observer pawn
+        if (!pawn) {
+            pawn_handle = g::memory.read<std::uint32_t>(
+                controller + SCHEMA(ecrypt("CCSPlayerController"), "m_hObserverPawn"_hash)
+            );
+            pawn = systems::g_entities.lookup(pawn_handle);
+        }
 
         if (!pawn || pawn == local_pawn) {
             continue;
@@ -55,6 +59,7 @@ void features::misc::spectators::update() {
 
         const auto observer_target_pawn = systems::g_entities.lookup(observer_target_handle);
 
+        // check if they are spectating our local player
         if (observer_target_pawn == local_pawn) {
             // fetch name directly from controller
             const auto name_ptr = g::memory.read<std::uintptr_t>(

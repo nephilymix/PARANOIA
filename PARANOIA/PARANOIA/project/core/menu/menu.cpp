@@ -613,6 +613,29 @@ void menu::draw_esp()
 		zui::end_group_box();
 	}
 
+	if (zui::begin_group_box(ecrypt("chams"), col_w))
+	{
+		auto& ch = p.m_chams;
+		zui::checkbox(ecrypt("enabled##chm"), ch.enabled);
+		zui::checkbox(ecrypt("wireframe##chm"), ch.wireframe);
+
+		const char* mat_types[]{ ecrypt("flat"), ecrypt("shaded"), ecrypt("glow") };
+		int mat = ch.material_type;
+		if (zui::combo(ecrypt("material##chm"), mat, mat_types, 3))
+		{
+			ch.material_type = mat;
+		}
+
+		zui::slider_float(ecrypt("alpha##chm"), ch.alpha, 0.1f, 1.0f, ecrypt("%.2f"));
+		zui::color_picker(ecrypt("fill color##chm"), ch.fill_color);
+
+		if (ch.wireframe)
+		{
+			zui::color_picker(ecrypt("wire color##chm"), ch.wire_color);
+		}
+		zui::end_group_box();
+	}
+
 	if (zui::begin_group_box(ecrypt("hitboxes"), col_w))
 	{
 		auto& hb = p.m_hitboxes;
