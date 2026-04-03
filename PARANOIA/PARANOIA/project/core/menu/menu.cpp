@@ -620,11 +620,8 @@ void menu::draw_esp()
 		zui::checkbox(ecrypt("wireframe##chm"), ch.wireframe);
 
 		const char* mat_types[]{ ecrypt("flat"), ecrypt("shaded"), ecrypt("glow") };
-		int mat = ch.material_type;
-		if (zui::combo(ecrypt("material##chm"), mat, mat_types, 3))
-		{
-			ch.material_type = mat;
-		}
+		// FIX: pass variable directly so zui modifies it
+		zui::combo(ecrypt("material##chm"), ch.material_type, mat_types, 3);
 
 		zui::slider_float(ecrypt("alpha##chm"), ch.alpha, 0.1f, 1.0f, ecrypt("%.2f"));
 		zui::color_picker(ecrypt("fill color##chm"), ch.fill_color);

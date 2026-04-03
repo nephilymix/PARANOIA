@@ -10,6 +10,81 @@ void features::misc::spectators::update() {
         return;
     }
 
+    const auto entities = systems::g_entities.all();
+
+    for (const auto& entry : entities) {
+        if (entry.type != systems::entities::type::player) {
+            continue;
+        }
+
+        const auto controller = entry.ptr;
+        if (!controller) continue;
+
+        auto pawn_handle = g::memory.read<std::uint32_t>(controller + SCHEMA(ecrypt("CCSPlayerController"), "m_hPlayerPawn"_hash));
+
+        if (!pawn_handle) {
+            current_list.push_back(ecrypt("SPECTATORS ERROR: No pawn_handle"));
+            continue;
+        }
+
+        auto pawn = systems::g_entities.lookup(pawn_handle);
+
+        // If player is dead, grab observer pawn
+        if (!pawn) {
+            pawn_handle = g::memory.read<std::uint32_t>(controller + SCHEMA(ecrypt("CCSPlayerController"), "m_hObserverPawn"_hash));
+            pawn = systems::g_entities.lookup(pawn_handle);
+        }
+
+        if (!pawn || pawn == local_pawn) continue;
+
+        // In CS2, ObserverServices can be attached to the pawn OR the controller. Check both!
+        std::uintptr_t observer_services = g::memory.read<std::uintptr_t>(pawn + SCHEMA(ecrypt("C_BasePlayerPawn"), "m_pObserverServices"_hash));
+
+        if (!observer_services) {
+            current_list.push_back(ecrypt("SPECTATORS ERROR: No Observer Services in C_BasePlayerPawn")); 
+        }
+
+        if (!observer_services) {
+            observer_services = g::memory.read<std::uintptr_t>(controller + SCHEMA(ecrypt("CBasePlayerController"), "m_pObserverServices"_hash));
+        }
+
+        if (!observer_services) {
+            current_list.push_back(ecrypt("SPECTATORS ERROR: No Observer Services in CBasePlayerController")); 
+            continue;
+        }
+
+        const auto observer_target_handle = g::memory.read<std::uint32_t>(
+            observer_services + SCHEMA(ecrypt("CPlayer_ObserverServices"), "m_hObserverTarget"_hash)
+        );
+
+        if (!observer_target_handle) continue;
+
+        const auto observer_target_pawn = systems::g_entities.lookup(observer_target_handle);
+
+        if (observer_target_pawn == local_pawn) {
+            const auto name_ptr = g::memory.read<std::uintptr_t>(controller + SCHEMA(ecrypt("CCSPlayerController"), "m_sSanitizedPlayerName"_hash));
+            if (name_ptr) {
+                current_list.push_back(g::memory.read_string(name_ptr, 128));
+            }
+        }
+    }
+
+    std::lock_guard<std::mutex> lock(this->m_mutex);
+    this->m_spectators = std::move(current_list);
+}
+
+/*
+
+void features::misc::spectators::update() {
+    std::vector<std::string> current_list;
+
+    const auto local_pawn = systems::g_local.pawn();
+    if (!local_pawn) {
+        std::lock_guard<std::mutex> lock(this->m_mutex);
+        this->m_spectators.clear();
+        return;
+    }
+
     // fetch all raw entities instead of using collector because collector skips dead players
     const auto entities = systems::g_entities.all();
 
@@ -75,6 +150,7 @@ void features::misc::spectators::update() {
     std::lock_guard<std::mutex> lock(this->m_mutex);
     this->m_spectators = std::move(current_list);
 }
+*/
 
 void features::misc::spectators::render() {
     if (!settings::g_misc.m_spectators) {
