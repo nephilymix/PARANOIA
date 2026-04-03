@@ -498,7 +498,7 @@ void menu::draw_combat()
 	}
 
 	/*
-	
+
 	if (zui::begin_group_box(ecrypt("aimbot"), col_w))
 	{
 		zui::checkbox(ecrypt("enabled##ab"), cfg.aimbot.enabled);
