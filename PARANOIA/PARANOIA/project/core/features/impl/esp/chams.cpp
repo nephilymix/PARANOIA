@@ -40,7 +40,7 @@ namespace features::esp {
             float2 _pad0;
         };
         cbuffer CBBoneMatrices : register(b1) {
-            row_major float4x4 g_Bones[128];
+            row_major float4x4 g_Bones[256];
         };
         cbuffer CBMaterial : register(b2) {
             float4 g_FillCol;
@@ -63,10 +63,12 @@ namespace features::esp {
             float3 WPos : TEXCOORD0;
             float3 WNorm: TEXCOORD1;
         };
+
         PS_IN VS_Skinning(VS_IN input) {
             PS_IN output = (PS_IN)0;
             float4 sp = float4(0,0,0,0);
             float3 sn = float3(0,0,0);
+            
             [unroll] for (int i=0; i<4; i++) {
                 float w = input.Weights[i];
                 if (w > 0.0001f) {
@@ -75,90 +77,55 @@ namespace features::esp {
                     sn += mul((float3x3)g_Bones[b], input.Norm) * w;
                 }
             }
+            
             output.WPos = sp.xyz;
             output.WNorm = normalize(sn);
             
-            // FIX: Proper hardware Clip-Space projection!
-            output.Pos = mul(g_VP, sp);
+            // D3D Y is inverted compared to CS2 Screen space
+            output.Pos.x = dot(g_VP[0], sp);
+            output.Pos.y = -dot(g_VP[1], sp); 
+            output.Pos.w = dot(g_VP[3], sp);
+            output.Pos.z = 0.5f * output.Pos.w; // D3D Z clipping bypass
+            
             return output;
         }
+        
         float4 PS_Fill(PS_IN input) : SV_TARGET {
-            return float4(g_FillCol.rgb, g_FillCol.a * g_Alpha);
+            float3 normal = normalize(input.WNorm);
+            float alpha = g_FillCol.a * g_Alpha;
+            
+            if (g_MatType == 1) { 
+                float3 lightDir = normalize(float3(0.3f, 1.0f, 0.5f));
+                float diff = max(dot(normal, lightDir), 0.2f);
+                return float4(g_FillCol.rgb * diff, alpha);
+            } 
+            else if (g_MatType == 2) { 
+                float3 viewDir = normalize(g_CamPos - input.WPos);
+                float rim = 1.0f - max(dot(viewDir, normal), 0.0f);
+                rim = smoothstep(0.4f, 1.0f, rim);
+                float3 glowColor = g_FillCol.rgb + (g_FillCol.rgb * rim * 1.8f);
+                return float4(glowColor, alpha);
+            }
+            else if (g_MatType == 3) {
+                // Gradient + Bloom using world height
+                float h = clamp(input.WPos.z, 0.0f, 75.0f) / 75.0f;
+                float3 gradientCol = lerp(g_FillCol.rgb * 0.2f, g_FillCol.rgb * 1.5f, h);
+                
+                float3 viewDir = normalize(g_CamPos - input.WPos);
+                float rim = 1.0f - max(dot(viewDir, normal), 0.0f);
+                rim = pow(rim, 2.5f); // Sharp edges for bloom
+                
+                // Add wire_color as the glow outline
+                return float4(gradientCol + (g_WireCol.rgb * rim * 2.0f), alpha); 
+            }
+            
+            return float4(g_FillCol.rgb, alpha);
         }
+        
         float4 PS_Wire(PS_IN input) : SV_TARGET {
             return float4(g_WireCol.rgb, g_WireCol.a * g_Alpha);
         }
     )";
-
-/*
-    // hlsl shader source
-    static const char* s_shader = R"(
-        cbuffer CBViewProjection : register(b0) {
-            row_major float4x4 g_VP;
-            float g_ScreenW;
-            float g_ScreenH;
-            float2 _pad0;
-        };
-        cbuffer CBBoneMatrices : register(b1) {
-            row_major float4x4 g_Bones[128];
-        };
-        cbuffer CBMaterial : register(b2) {
-            float4 g_FillCol;
-            float4 g_WireCol;
-            int    g_Mode;
-            float  g_Alpha;
-            int    g_MatType;
-            float  g_Rim;
-            float3 g_CamPos;
-            float  _pad1;
-        };
-        struct VS_IN {
-            float3 Pos : POSITION;
-            float3 Norm : NORMAL;
-            uint4  Bones : BLENDINDICES;
-            float4 Weights : BLENDWEIGHT;
-        };
-        struct PS_IN {
-            float4 Pos : SV_POSITION;
-            float3 WPos : TEXCOORD0;
-            float3 WNorm: TEXCOORD1;
-        };
-        PS_IN VS_Skinning(VS_IN input) {
-            PS_IN output = (PS_IN)0;
-            float4 sp = float4(0,0,0,0);
-            float3 sn = float3(0,0,0);
-            [unroll] for (int i=0; i<4; i++) {
-                float w = input.Weights[i];
-                if (w > 0.0001f) {
-                    uint b = input.Bones[i];
-                    sp += mul(g_Bones[b], float4(input.Pos, 1.0f)) * w;
-                    sn += mul((float3x3)g_Bones[b], input.Norm) * w;
-                }
-            }
-            output.WPos = sp.xyz;
-            output.WNorm = normalize(sn);
-
-            float4 clip = mul(g_VP, sp);
-            if (clip.w < 0.01f) {
-                output.Pos = float4(0,0,-1,1);
-                return output;
-            }
-            float inv_w = 1.0f / clip.w;
-            float nx = clip.x * inv_w;
-            float ny = clip.y * inv_w;
-            float sx = g_ScreenW * 0.5f + nx * g_ScreenW * 0.5f;
-            float sy = g_ScreenH * 0.5f - ny * g_ScreenH * 0.5f;
-            output.Pos = float4((sx/g_ScreenW)*2.0f-1.0f, -((sy/g_ScreenH)*2.0f-1.0f), 0.5f, 1.0f);
-            return output;
-        }
-        float4 PS_Fill(PS_IN input) : SV_TARGET {
-            return float4(g_FillCol.rgb, g_FillCol.a * g_Alpha);
-        }
-        float4 PS_Wire(PS_IN input) : SV_TARGET {
-            return float4(g_WireCol.rgb, g_WireCol.a * g_Alpha);
-        }
-    )";
-*/
 
     bool c_mesh_renderer::initialize(ID3D11Device* device, ID3D11DeviceContext* context) {
         m_device = device;
@@ -796,7 +763,9 @@ namespace features::esp {
         m_device->CreateBlendState(&bd, &m_blend);
 
         D3D11_DEPTH_STENCIL_DESC dsd{};
-        dsd.DepthEnable = FALSE;
+        dsd.DepthEnable = TRUE; // Changed from FALSE
+        dsd.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+        dsd.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
         dsd.StencilEnable = FALSE;
         m_device->CreateDepthStencilState(&dsd, &m_depth);
 
