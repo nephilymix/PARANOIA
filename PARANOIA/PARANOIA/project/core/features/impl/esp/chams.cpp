@@ -1,8 +1,9 @@
 #include <stdafx.hpp>
 
+#pragma comment(lib, "d3dcompiler.lib")
+
 namespace features::esp {
 
-    // hardware rendering structs
     struct gpu_vertex_t {
         float position[3];
         float normal[3];
@@ -81,11 +82,20 @@ namespace features::esp {
             output.WPos = sp.xyz;
             output.WNorm = normalize(sn);
             
+<<<<<<< HEAD
             // D3D Y is inverted compared to CS2 Screen space
             output.Pos.x = dot(g_VP[0], sp);
             output.Pos.y = -dot(g_VP[1], sp); 
             output.Pos.w = dot(g_VP[3], sp);
             output.Pos.z = 0.5f * output.Pos.w; // D3D Z clipping bypass
+=======
+            output.Pos.x = dot(g_VP[0], sp);
+            output.Pos.y = dot(g_VP[1], sp);
+            output.Pos.w = dot(g_VP[3], sp);
+            
+            // Фикс отсечения глубины (Z-Clipping)
+            output.Pos.z = 0.5f * output.Pos.w; 
+>>>>>>> 706422b5cbe732ae3b45f25bb8ef00821a34c7ef
             
             return output;
         }
@@ -102,6 +112,7 @@ namespace features::esp {
             else if (g_MatType == 2) { 
                 float3 viewDir = normalize(g_CamPos - input.WPos);
                 float rim = 1.0f - max(dot(viewDir, normal), 0.0f);
+<<<<<<< HEAD
                 rim = smoothstep(0.4f, 1.0f, rim);
                 float3 glowColor = g_FillCol.rgb + (g_FillCol.rgb * rim * 1.8f);
                 return float4(glowColor, alpha);
@@ -118,6 +129,12 @@ namespace features::esp {
                 // Add wire_color as the glow outline
                 return float4(gradientCol + (g_WireCol.rgb * rim * 2.0f), alpha); 
             }
+=======
+                rim = smoothstep(0.5f, 1.0f, rim);
+                float3 glowColor = g_FillCol.rgb + (g_FillCol.rgb * rim * 1.5f);
+                return float4(glowColor, alpha);
+            }
+>>>>>>> 706422b5cbe732ae3b45f25bb8ef00821a34c7ef
             
             return float4(g_FillCol.rgb, alpha);
         }
@@ -128,18 +145,22 @@ namespace features::esp {
     )";
 
     bool c_mesh_renderer::initialize(ID3D11Device* device, ID3D11DeviceContext* context) {
+        std::cout << "[CHAMS] Initialization started.\n";
         m_device = device;
         m_context = context;
 
         if (!setup_gpu()) {
+            std::cout << "[CHAMS] ERROR: setup_gpu failed!\n";
             return false;
         }
 
+        std::cout << "[CHAMS] Initialization successful.\n";
         m_ready = true;
         return true;
     }
 
     void c_mesh_renderer::shutdown() {
+        std::cout << "[CHAMS] Shutting down...\n";
         for (auto& [key, mesh] : m_meshes) {
             mesh.release();
         }
@@ -162,6 +183,7 @@ namespace features::esp {
 
     bool c_mesh_renderer::load_mesh_from_memory(const std::string& key, const uint8_t* data, size_t size) {
         if (!data || size < 20) {
+            std::cout << "[CHAMS] ERROR: Invalid data for model " << key << "\n";
             return false;
         }
 
@@ -169,6 +191,7 @@ namespace features::esp {
         uint32_t version = *reinterpret_cast<const uint32_t*>(&data[4]);
 
         if (magic != 0x46546C67 || version != 2) {
+            std::cout << "[CHAMS] ERROR: Bad magic/version for model " << key << "\n";
             return false;
         }
 
@@ -189,6 +212,7 @@ namespace features::esp {
             gltf = nlohmann::json::parse(json_str);
         }
         catch (...) {
+            std::cout << "[CHAMS] ERROR: JSON parsing failed for " << key << "\n";
             return false;
         }
 
@@ -203,6 +227,7 @@ namespace features::esp {
             };
 
         if (!gltf.contains("skins") || gltf["skins"].empty()) {
+            std::cout << "[CHAMS] ERROR: No skins found in model " << key << "\n";
             return false;
         }
 
@@ -227,16 +252,12 @@ namespace features::esp {
         }
 
         for (auto& node : gltf["nodes"]) {
-            if (!node.contains("mesh") || !node.contains("skin")) {
-                continue;
-            }
+            if (!node.contains("mesh") || !node.contains("skin")) continue;
 
             int mesh_idx = node["mesh"].get<int>();
             for (auto& prim : gltf["meshes"][mesh_idx]["primitives"]) {
                 auto& attrs = prim["attributes"];
-                if (!attrs.contains("POSITION") || !attrs.contains("JOINTS_0") || !prim.contains("indices")) {
-                    continue;
-                }
+                if (!attrs.contains("POSITION") || !attrs.contains("JOINTS_0") || !prim.contains("indices")) continue;
 
                 int pos_idx = attrs["POSITION"].get<int>();
                 int joints_idx = attrs["JOINTS_0"].get<int>();
@@ -267,10 +288,7 @@ namespace features::esp {
             }
         }
 
-        // calculate smooth normals
-        for (auto& v : mesh.vertices) {
-            v.normal = { 0.f, 0.f, 0.f };
-        }
+        for (auto& v : mesh.vertices) v.normal = { 0.f, 0.f, 0.f };
 
         for (size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
             auto& v0 = mesh.vertices[mesh.indices[i]];
@@ -286,25 +304,23 @@ namespace features::esp {
             v2.normal = v2.normal + n;
         }
 
-        for (auto& v : mesh.vertices) {
-            v.normal.normalize();
-        }
+        for (auto& v : mesh.vertices) v.normal.normalize();
 
         mesh.vertex_count = static_cast<uint32_t>(mesh.vertices.size());
         mesh.index_count = static_cast<uint32_t>(mesh.indices.size());
 
         if (!upload_mesh(mesh)) {
+            std::cout << "[CHAMS] ERROR: GPU Upload failed for " << key << "\n";
             return false;
         }
 
         m_meshes[key] = std::move(mesh);
+        std::cout << "[CHAMS] Loaded mesh: " << key << " (" << mesh.vertex_count << " vertices)\n";
         return true;
     }
 
     std::vector<bone_matrix_3x4_t> c_mesh_renderer::convert_cached_bones(const systems::bones::data& bones, int needed_count) {
         std::vector<bone_matrix_3x4_t> matrices(needed_count);
-
-        // fix: use bones.bones.size() instead of non-existent count
         int limit = (std::min)(needed_count, static_cast<int>(bones.bones.size()));
 
         for (int i = 0; i < limit; i++) {
@@ -340,6 +356,7 @@ namespace features::esp {
             return;
         }
 
+<<<<<<< HEAD
         // debug: print raw model name from game
         static std::string last_model = "";
         if (player.model_name != last_model && !player.model_name.empty()) {
@@ -520,9 +537,16 @@ namespace features::esp {
             return;
         }
 
+=======
+        static std::string last_model = "";
+        if (player.model_name != last_model && !player.model_name.empty()) {
+            std::cout << "[CHAMS] Rendering player with game model: " << player.model_name << "\n";
+            last_model = player.model_name;
+        }
+
+>>>>>>> 706422b5cbe732ae3b45f25bb8ef00821a34c7ef
         std::string target_key = "ctm_sas";
 
-        // resolve model based on game node name
         if (player.model_name.find("ctm_sas") != std::string::npos) target_key = "ctm_sas";
         else if (player.model_name.find("ctm_fbi") != std::string::npos) target_key = "ctm_fbi";
         else if (player.model_name.find("ctm_heavy") != std::string::npos) target_key = "ctm_heavy";
@@ -540,11 +564,10 @@ namespace features::esp {
 
         auto it = m_meshes.find(target_key);
         if (it == m_meshes.end()) {
-            return; // model is missing
+            return;
         }
 
         skinned_mesh_t* mesh = &it->second;
-
         int needed = static_cast<int>(mesh->gltf_to_game_bone_map.size());
         needed = (std::min)(needed, 128);
 
@@ -582,7 +605,8 @@ namespace features::esp {
             return;
         }
 
-        // save states
+        std::cout << "[CHAMS] Flushing " << m_draws.size() << " draws.\n";
+
         ID3D11RasterizerState* old_rs;
         m_context->RSGetState(&old_rs);
 
@@ -595,24 +619,37 @@ namespace features::esp {
         UINT old_sr;
         m_context->OMGetDepthStencilState(&old_dss, &old_sr);
 
+        UINT num_viewports = 1;
+        D3D11_VIEWPORT old_vp;
+        m_context->RSGetViewports(&num_viewports, &old_vp);
+
+        D3D11_VIEWPORT vp{};
+        const auto [w, h] = zdraw::get_display_size();
+        vp.Width = static_cast<float>(w);
+        vp.Height = static_cast<float>(h);
+        vp.MinDepth = 0.0f;
+        vp.MaxDepth = 1.0f;
+        vp.TopLeftX = 0.0f;
+        vp.TopLeftY = 0.0f;
+        m_context->RSSetViewports(1, &vp);
+
         D3D11_MAPPED_SUBRESOURCE mapped;
         if (SUCCEEDED(m_context->Map(m_cb_vp, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
             auto* data = static_cast<cb_view_projection_t*>(mapped.pData);
-
-            // get exact view matrix
             const auto& view_matrix = systems::g_view.get_matrix();
 
-            // fix: safely copy matrix elements without memcpy or data()
             for (int row = 0; row < 4; row++) {
                 for (int col = 0; col < 4; col++) {
                     data->vp[row][col] = view_matrix[row][col];
                 }
             }
 
-            const auto [w, h] = zdraw::get_display_size();
             data->screen_w = static_cast<float>(w);
             data->screen_h = static_cast<float>(h);
             m_context->Unmap(m_cb_vp, 0);
+        }
+        else {
+            std::cout << "[CHAMS] ERROR: Map m_cb_vp failed!\n";
         }
 
         m_context->IASetInputLayout(m_layout);
@@ -630,7 +667,6 @@ namespace features::esp {
         m_context->PSSetConstantBuffers(0, 1, ps_cbs);
 
         for (auto& cmd : m_draws) {
-            // map bones
             if (SUCCEEDED(m_context->Map(m_cb_bones, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
                 auto* bdata = static_cast<cb_bone_matrices_t*>(mapped.pData);
                 memset(bdata, 0, sizeof(cb_bone_matrices_t));
@@ -667,6 +703,11 @@ namespace features::esp {
                     mdata->alpha = cmd.alpha;
                     mdata->material_type = cmd.material_type;
 
+                    auto cam_pos = systems::g_view.origin();
+                    mdata->cam_pos[0] = cam_pos.x;
+                    mdata->cam_pos[1] = cam_pos.y;
+                    mdata->cam_pos[2] = cam_pos.z;
+
                     m_context->Unmap(m_cb_mat, 0);
                 }
                 };
@@ -687,7 +728,7 @@ namespace features::esp {
 
         m_draws.clear();
 
-        // restore states
+        m_context->RSSetViewports(num_viewports, &old_vp);
         m_context->RSSetState(old_rs);
         m_context->OMSetBlendState(old_bs, old_bf, old_sm);
         m_context->OMSetDepthStencilState(old_dss, old_sr);
@@ -702,14 +743,16 @@ namespace features::esp {
         ID3DBlob* vs_blob = nullptr;
         ID3DBlob* ps_fill_blob = nullptr;
         ID3DBlob* ps_wire_blob = nullptr;
+        ID3DBlob* error_blob = nullptr;
 
-        D3DCompile(s_shader, strlen(s_shader), nullptr, nullptr, nullptr, "VS_Skinning", "vs_5_0", 0, 0, &vs_blob, nullptr);
-        D3DCompile(s_shader, strlen(s_shader), nullptr, nullptr, nullptr, "PS_Fill", "ps_5_0", 0, 0, &ps_fill_blob, nullptr);
-        D3DCompile(s_shader, strlen(s_shader), nullptr, nullptr, nullptr, "PS_Wire", "ps_5_0", 0, 0, &ps_wire_blob, nullptr);
-
-        if (!vs_blob || !ps_fill_blob || !ps_wire_blob) {
+        auto hr_vs = D3DCompile(s_shader, strlen(s_shader), nullptr, nullptr, nullptr, "VS_Skinning", "vs_5_0", 0, 0, &vs_blob, &error_blob);
+        if (FAILED(hr_vs)) {
+            if (error_blob) std::cout << "[CHAMS] VS Compile Error: " << (char*)error_blob->GetBufferPointer() << "\n";
             return false;
         }
+
+        D3DCompile(s_shader, strlen(s_shader), nullptr, nullptr, nullptr, "PS_Fill", "ps_5_0", 0, 0, &ps_fill_blob, nullptr);
+        D3DCompile(s_shader, strlen(s_shader), nullptr, nullptr, nullptr, "PS_Wire", "ps_5_0", 0, 0, &ps_wire_blob, nullptr);
 
         m_device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), nullptr, &m_vs);
         m_device->CreatePixelShader(ps_fill_blob->GetBufferPointer(), ps_fill_blob->GetBufferSize(), nullptr, &m_ps_fill);
@@ -773,9 +816,7 @@ namespace features::esp {
     }
 
     bool c_mesh_renderer::upload_mesh(skinned_mesh_t& mesh) {
-        if (mesh.vertices.empty()) {
-            return false;
-        }
+        if (mesh.vertices.empty()) return false;
 
         std::vector<gpu_vertex_t> gv(mesh.vertices.size());
         for (size_t i = 0; i < mesh.vertices.size(); i++) {
