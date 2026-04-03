@@ -32,7 +32,6 @@ namespace features::esp {
         float pad;
     };
 
-    // hlsl shader source
     static const char* s_shader = R"(
         cbuffer CBViewProjection : register(b0) {
             row_major float4x4 g_VP;
@@ -79,6 +78,66 @@ namespace features::esp {
             output.WPos = sp.xyz;
             output.WNorm = normalize(sn);
             
+            // FIX: Proper hardware Clip-Space projection!
+            output.Pos = mul(g_VP, sp);
+            return output;
+        }
+        float4 PS_Fill(PS_IN input) : SV_TARGET {
+            return float4(g_FillCol.rgb, g_FillCol.a * g_Alpha);
+        }
+        float4 PS_Wire(PS_IN input) : SV_TARGET {
+            return float4(g_WireCol.rgb, g_WireCol.a * g_Alpha);
+        }
+    )";
+
+/*
+    // hlsl shader source
+    static const char* s_shader = R"(
+        cbuffer CBViewProjection : register(b0) {
+            row_major float4x4 g_VP;
+            float g_ScreenW;
+            float g_ScreenH;
+            float2 _pad0;
+        };
+        cbuffer CBBoneMatrices : register(b1) {
+            row_major float4x4 g_Bones[128];
+        };
+        cbuffer CBMaterial : register(b2) {
+            float4 g_FillCol;
+            float4 g_WireCol;
+            int    g_Mode;
+            float  g_Alpha;
+            int    g_MatType;
+            float  g_Rim;
+            float3 g_CamPos;
+            float  _pad1;
+        };
+        struct VS_IN {
+            float3 Pos : POSITION;
+            float3 Norm : NORMAL;
+            uint4  Bones : BLENDINDICES;
+            float4 Weights : BLENDWEIGHT;
+        };
+        struct PS_IN {
+            float4 Pos : SV_POSITION;
+            float3 WPos : TEXCOORD0;
+            float3 WNorm: TEXCOORD1;
+        };
+        PS_IN VS_Skinning(VS_IN input) {
+            PS_IN output = (PS_IN)0;
+            float4 sp = float4(0,0,0,0);
+            float3 sn = float3(0,0,0);
+            [unroll] for (int i=0; i<4; i++) {
+                float w = input.Weights[i];
+                if (w > 0.0001f) {
+                    uint b = input.Bones[i];
+                    sp += mul(g_Bones[b], float4(input.Pos, 1.0f)) * w;
+                    sn += mul((float3x3)g_Bones[b], input.Norm) * w;
+                }
+            }
+            output.WPos = sp.xyz;
+            output.WNorm = normalize(sn);
+
             float4 clip = mul(g_VP, sp);
             if (clip.w < 0.01f) {
                 output.Pos = float4(0,0,-1,1);
@@ -99,6 +158,7 @@ namespace features::esp {
             return float4(g_WireCol.rgb, g_WireCol.a * g_Alpha);
         }
     )";
+*/
 
     bool c_mesh_renderer::initialize(ID3D11Device* device, ID3D11DeviceContext* context) {
         m_device = device;
@@ -313,6 +373,186 @@ namespace features::esp {
             return;
         }
 
+        // debug: print raw model name from game
+        static std::string last_model = "";
+        if (player.model_name != last_model && !player.model_name.empty()) {
+            g::console.print("[CHAMS DEBUG] Found player model: %s\n", player.model_name.c_str());
+            last_model = player.model_name;
+        }
+
+        std::string target_key = "ctm_sas";
+
+        if (player.model_name.find("ctm_sas") != std::string::npos) target_key = "ctm_sas";
+        else if (player.model_name.find("ctm_fbi") != std::string::npos) target_key = "ctm_fbi";
+        else if (player.model_name.find("ctm_heavy") != std::string::npos) target_key = "ctm_heavy";
+        else if (player.model_name.find("ctm_swat") != std::string::npos) target_key = "ctm_swat_variante";
+        else if (player.model_name.find("ctm_st6") != std::string::npos) target_key = "ctm_st6_variante";
+        else if (player.model_name.find("ctm_gendarmerie") != std::string::npos) target_key = "ctm_gendarmerie_varianta";
+        else if (player.model_name.find("ctm_diver") != std::string::npos) target_key = "ctm_diver_varianta";
+        else if (player.model_name.find("tm_phoenix_heavy") != std::string::npos) target_key = "tm_phoenix_heavy";
+        else if (player.model_name.find("tm_phoenix") != std::string::npos) target_key = "tm_phoenix";
+        else if (player.model_name.find("tm_professional") != std::string::npos) target_key = "tm_professional_varf";
+        else if (player.model_name.find("tm_leet") != std::string::npos) target_key = "tm_leet_varianta";
+        else if (player.model_name.find("tm_jumpsuit") != std::string::npos) target_key = "tm_jumpsuit_varianta";
+        else if (player.model_name.find("tm_jungle_raider") != std::string::npos) target_key = "tm_jungle_raider_varianta";
+        else if (player.model_name.find("tm_balkan") != std::string::npos) target_key = "tm_balkan_variantf";
+
+        auto it = m_meshes.find(target_key);
+        if (it == m_meshes.end()) {
+            g::console.print("[CHAMS DEBUG] Missing mesh in memory for key: %s\n", target_key.c_str());
+            return;
+        }
+
+        skinned_mesh_t* mesh = &it->second;
+
+        int needed = static_cast<int>(mesh->gltf_to_game_bone_map.size());
+        needed = (std::min)(needed, 128);
+
+        auto game_bones = convert_cached_bones(bones, needed);
+        if (game_bones.empty()) {
+            g::console.print("[CHAMS DEBUG] Game bones are empty for: %s\n", target_key.c_str());
+            return;
+        }
+
+        draw_command_t cmd{};
+        cmd.mesh = mesh;
+        cmd.fill_color = cfg.fill_color;
+        cmd.wire_color = cfg.wire_color;
+        cmd.alpha = cfg.alpha;
+        cmd.render_mode = cfg.wireframe ? 2 : 0;
+        cmd.material_type = cfg.material_type;
+
+        size_t bone_count = mesh->inverse_bind_matrices.size();
+        cmd.combined_matrices.resize(bone_count);
+
+        for (size_t i = 0; i < bone_count; i++) {
+            int game_idx = (i < mesh->gltf_to_game_bone_map.size()) ? mesh->gltf_to_game_bone_map[i] : 0;
+            if (game_idx >= 0 && game_idx < static_cast<int>(game_bones.size())) {
+                cmd.combined_matrices[i] = game_bones[game_idx].multiply(mesh->inverse_bind_matrices[i]);
+            }
+            else {
+                cmd.combined_matrices[i] = bone_matrix_3x4_t::identity();
+            }
+        }
+
+        m_draws.push_back(std::move(cmd));
+    }
+
+    void c_mesh_renderer::flush() {
+        if (!m_ready || m_draws.empty()) {
+            return;
+        }
+
+        // save states
+        ID3D11RasterizerState* old_rs;
+        m_context->RSGetState(&old_rs);
+
+        ID3D11BlendState* old_bs;
+        float old_bf[4];
+        UINT old_sm;
+        m_context->OMGetBlendState(&old_bs, old_bf, &old_sm);
+
+        ID3D11DepthStencilState* old_dss;
+        UINT old_sr;
+        m_context->OMGetDepthStencilState(&old_dss, &old_sr);
+
+        // FIX: Save old viewports and setup our own
+        UINT num_viewports = 1;
+        D3D11_VIEWPORT old_vp;
+        m_context->RSGetViewports(&num_viewports, &old_vp);
+
+        D3D11_VIEWPORT vp{};
+        const auto [w, h] = zdraw::get_display_size();
+        vp.Width = static_cast<float>(w);
+        vp.Height = static_cast<float>(h);
+        vp.MinDepth = 0.0f;
+        vp.MaxDepth = 1.0f;
+        vp.TopLeftX = 0.0f;
+        vp.TopLeftY = 0.0f;
+        m_context->RSSetViewports(1, &vp);
+
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        if (SUCCEEDED(m_context->Map(m_cb_vp, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+            auto* data = static_cast<cb_view_projection_t*>(mapped.pData);
+            const auto& view_matrix = systems::g_view.get_matrix();
+
+            for (int row = 0; row < 4; row++) {
+                for (int col = 0; col < 4; col++) {
+                    data->vp[row][col] = view_matrix[row][col];
+                }
+            }
+
+            data->screen_w = static_cast<float>(w);
+            data->screen_h = static_cast<float>(h);
+            m_context->Unmap(m_cb_vp, 0);
+        }
+
+        m_context->IASetInputLayout(m_layout);
+        m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        m_context->VSSetShader(m_vs, nullptr, 0);
+
+        float blend_factor[4] = { 0,0,0,0 };
+        m_context->OMSetBlendState(m_blend, blend_factor, 0xFFFFFFFF);
+        m_context->OMSetDepthStencilState(m_depth, 0);
+
+        ID3D11Buffer* vs_cbs[3] = { m_cb_vp, m_cb_bones, m_cb_mat };
+        m_context->VSSetConstantBuffers(0, 3, vs_cbs);
+        ID3D11Buffer* ps_cbs[1] = { m_cb_mat };
+        m_context->PSSetConstantBuffers(0, 1, ps_cbs);
+
+        for (auto& cmd : m_draws) {
+            if (SUCCEEDED(m_context->Map(m_cb_bones, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+                auto* bdata = static_cast<cb_bone_matrices_t*>(mapped.pData);
+                memset(bdata, 0, sizeof(cb_bone_matrices_t));
+                size_t c = (std::min)(cmd.combined_matrices.size(), size_t(128));
+
+                for (size_t i = 0; i < c; i++) {
+                    cmd.combined_matrices[i].to_4x4(bdata->bones[i]);
+                }
+
+                m_context->Unmap(m_cb_bones, 0);
+            }
+
+            UINT stride = sizeof(gpu_vertex_t);
+            UINT offset = 0;
+            m_context->IASetVertexBuffers(0, 1, &cmd.mesh->gpu_vertex_buffer, &stride, &offset);
+            m_context->IASetIndexBuffer(cmd.mesh->gpu_index_buffer, DXGI_FORMAT_R32_UINT, 0);
+
+            auto update_mat = [&](int mode) {
+                if (SUCCEEDED(m_context->Map(m_cb_mat, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+                    auto* mdata = static_cast<cb_material_t*>(mapped.pData);
+                    mdata->color[0] = cmd.fill_color.r / 255.f; mdata->color[1] = cmd.fill_color.g / 255.f;
+                    mdata->color[2] = cmd.fill_color.b / 255.f; mdata->color[3] = cmd.fill_color.a / 255.f;
+                    mdata->wire_color[0] = cmd.wire_color.r / 255.f; mdata->wire_color[1] = cmd.wire_color.g / 255.f;
+                    mdata->wire_color[2] = cmd.wire_color.b / 255.f; mdata->wire_color[3] = cmd.wire_color.a / 255.f;
+                    mdata->render_mode = mode; mdata->alpha = cmd.alpha; mdata->material_type = cmd.material_type;
+                    m_context->Unmap(m_cb_mat, 0);
+                }
+                };
+
+            if (cmd.render_mode == 0 || cmd.render_mode == 2) { update_mat(0); m_context->RSSetState(m_rs_fill); m_context->PSSetShader(m_ps_fill, nullptr, 0); m_context->DrawIndexed(cmd.mesh->index_count, 0, 0); }
+            if (cmd.render_mode == 1 || cmd.render_mode == 2) { update_mat(1); m_context->RSSetState(m_rs_wire); m_context->PSSetShader(m_ps_wire, nullptr, 0); m_context->DrawIndexed(cmd.mesh->index_count, 0, 0); }
+        }
+
+        m_draws.clear();
+
+        // restore states
+        m_context->RSSetViewports(num_viewports, &old_vp);
+        m_context->RSSetState(old_rs);
+        m_context->OMSetBlendState(old_bs, old_bf, old_sm);
+        m_context->OMSetDepthStencilState(old_dss, old_sr);
+
+        if (old_rs) old_rs->Release();
+        if (old_bs) old_bs->Release();
+        if (old_dss) old_dss->Release();
+    }
+
+/*
+    void c_mesh_renderer::render_player(const systems::collector::player& player, const systems::bones::data& bones, const settings::esp::player::chams& cfg) {
+        if (!m_ready || !cfg.enabled) {
+            return;
+        }
+
         std::string target_key = "ctm_sas";
 
         // resolve model based on game node name
@@ -489,6 +729,7 @@ namespace features::esp {
         if (old_bs) old_bs->Release();
         if (old_dss) old_dss->Release();
     }
+*/
 
     bool c_mesh_renderer::setup_gpu() {
         ID3DBlob* vs_blob = nullptr;
