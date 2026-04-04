@@ -405,6 +405,26 @@ namespace features {
 
 		inline spectators g_spectators{};
 
+		class radar
+		{
+		public:
+			void on_render();
+			void set_map_data(float x, float y, float scale, ID3D11ShaderResourceView* tex);
+
+		private:
+			struct map_data_t {
+				float x{ 0.0f };
+				float y{ 0.0f };
+				float scale{ 0.0f };
+				ID3D11ShaderResourceView* texture{ nullptr };
+			};
+			map_data_t m_map{};
+
+			[[nodiscard]] math::vector2 world_to_radar(const math::vector3& world, const math::vector2& radar_pos, float radar_size) const;
+		};
+
+		inline radar g_radar{};
+
 		class impacts
 		{
 		public:
