@@ -129,6 +129,37 @@ void render::run()
             if (systems::g_local.valid())
             {
                 systems::g_view.update();
+                
+                std::string safe_map_name{};
+                {
+                    std::lock_guard<std::mutex> lock(systems::g_map_mutex);
+                    safe_map_name = systems::g_current_map_name;
+                }
+                // determine if we should display the lower level map
+                std::string display_map = safe_map_name;
+                float local_z = systems::g_view.origin().z;
+
+                // approximate z-axis thresholds for cs2 maps
+                if (safe_map_name == "de_nuke" && local_z < -480.0f)
+                {
+                    display_map = "de_nuke_lower";
+                }
+                else if (safe_map_name == "de_vertigo" && local_z < 11640.0f)
+                {
+                    display_map = "de_vertigo_lower";
+                }
+                else if (safe_map_name == "de_train" && local_z < -50.0f)
+                {
+                    display_map = "de_train_lower";
+                }
+                else if (safe_map_name == "ar_baggage" && local_z < 0.0f)
+                {
+                    display_map = "ar_baggage_lower";
+                }
+
+                // pass the calculated map string to the radar
+                features::misc::g_radar.update_map(display_map);
+                
                 features::esp::g_player.on_render();
                 features::esp::g_item.on_render();
                 features::esp::g_projectile.on_render();
