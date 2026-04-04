@@ -276,6 +276,11 @@ namespace settings {
 	{
 		bool m_spectators{ false };
 
+		struct radar
+		{
+			bool enabled{ true };
+		} m_radar{};
+
 		struct grenades
 		{
 			bool enabled{ true };
