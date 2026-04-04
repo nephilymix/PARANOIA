@@ -405,25 +405,38 @@ namespace features {
 
 		inline spectators g_spectators{};
 
-		class radar
-		{
-		public:
-			void on_render();
-			void set_map_data(float x, float y, float scale, ID3D11ShaderResourceView* tex);
+class radar
+	{
+	public:
+		void on_render();
+		
+		// call this in your render loop with the current map name
+		void update_map(const std::string& map_name);
 
-		private:
-			struct map_data_t {
-				float x{ 0.0f };
-				float y{ 0.0f };
-				float scale{ 0.0f };
-				ID3D11ShaderResourceView* texture{ nullptr };
-			};
-			map_data_t m_map{};
-
-			[[nodiscard]] math::vector2 world_to_radar(const math::vector3& world, const math::vector2& radar_pos, float radar_size) const;
+	private:
+		struct map_meta_t {
+			float x{ 0.0f };
+			float y{ 0.0f };
+			float scale{ 0.0f };
+			const unsigned char* image_data{ nullptr };
+			size_t image_size{ 0 };
 		};
 
-		inline radar g_radar{};
+		struct active_map_t {
+			float x{ 0.0f };
+			float y{ 0.0f };
+			float scale{ 0.0f };
+			Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture{};
+		};
+
+		active_map_t m_current_map{};
+		std::string m_last_map_name{};
+
+		[[nodiscard]] std::unordered_map<std::string, map_meta_t>& get_map_database();
+		[[nodiscard]] math::vector2 world_to_radar(const math::vector3& world, const math::vector2& radar_pos, float radar_size) const;
+	};
+
+	inline radar g_radar{};
 
 		class impacts
 		{
