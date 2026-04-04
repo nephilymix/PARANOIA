@@ -1,38 +1,61 @@
 #include <stdafx.hpp>
 
+#include "resources/maps/ar_baggage.hpp"
+#include "resources/maps/ar_shoots.hpp"
+#include "resources/maps/ar_shoots_night.hpp"
+#include "resources/maps/cs_alpine.hpp"
+#include "resources/maps/cs_italy.hpp"
+#include "resources/maps/cs_office.hpp"
+#include "resources/maps/de_ancient.hpp"
+#include "resources/maps/de_ancient_night.hpp"
+#include "resources/maps/de_ancient_v1.hpp"
+//#include "resources/maps/de_ancient_v2.hpp"
+#include "resources/maps/de_anubis.hpp"
+//#include "resources/maps/de_dust.hpp"
+#include "resources/maps/de_dust2.hpp"
+#include "resources/maps/de_inferno.hpp"
+//#include "resources/maps/de_inferno_s2.hpp"
+#include "resources/maps/de_mirage.hpp"
+#include "resources/maps/de_nuke.hpp"
+#include "resources/maps/de_overpass.hpp"
+//#include "resources/maps/de_overpass_2v2.hpp"
+#include "resources/maps/de_poseidon.hpp"
+//#include "resources/maps/de_sanctum.hpp"
+#include "resources/maps/de_stronghold.hpp"
+#include "resources/maps/de_train.hpp"
+#include "resources/maps/de_vertigo.hpp"
+#include "resources/maps/de_warden.hpp"
+
 namespace features::misc {
 
 	std::unordered_map<std::string, radar::map_meta_t>& radar::get_map_database()
 	{
-		// database of maps embedded in the cheat
-		// update x, y and scale with values from resource/overviews/<mapname>.txt
 		static std::unordered_map<std::string, map_meta_t> database = {
-
-	{ "ar_baggage", { -1316f, 1288f, 2.539062f, map_ar_baggage, sizeof(map_ar_baggage) } },
-	{ "ar_shoots", { -1368f, 1952f, 2.687500f, map_ar_shoots, sizeof(map_ar_shoots) } },
-	{ "ar_shoots_night", { -1368f, 1952f, 2.687500f, map_ar_shoots_night, sizeof(map_ar_shoots_night) } },
-	{ "cs_alpine", { -2107.1584f, 4687.119f, 6.5296063f, map_cs_alpine, sizeof(map_cs_alpine) } },
-	{ "cs_italy", { -2647f, 2592f, 4.6f, map_cs_italy, sizeof(map_cs_italy) } },
-	{ "cs_office", { -1838f, 1858f, 4.1f, map_cs_office, sizeof(map_cs_office) } },
-	{ "de_ancient", { -2953f, 2164f, 5f, map_de_ancient, sizeof(map_de_ancient) } },
-	{ "de_ancient_night", { -2953f, 2164f, 5f, map_de_ancient_night, sizeof(map_de_ancient_night) } },
-	{ "de_ancient_v1", { -2953f, 2164f, 5f, map_de_ancient_v1, sizeof(map_de_ancient_v1) } },
-	{ "de_ancient_v2", { -2953f, 2164f, 5f, map_de_ancient_v2, sizeof(map_de_ancient_v2) } },
-	{ "de_anubis", { -2796.000000f, 3328.000000f, 5.220000f, map_de_anubis, sizeof(map_de_anubis) } },
-	{ "de_dust", { -2850f, 4073f, 6f, map_de_dust, sizeof(map_de_dust) } },
-	{ "de_dust2", { -2476f, 3239f, 4.4f, map_de_dust2, sizeof(map_de_dust2) } },
-	{ "de_inferno", { -2087f, 3870f, 4.9f, map_de_inferno, sizeof(map_de_inferno) } },
-	{ "de_inferno_s2", { -2087f, 3870f, 4.9f, map_de_inferno_s2, sizeof(map_de_inferno_s2) } },
-	{ "de_mirage", { -3230f, 1713f, 5.00f, map_de_mirage, sizeof(map_de_mirage) } },
-	{ "de_nuke", { -3453f, 2887f, 7f, map_de_nuke, sizeof(map_de_nuke) } },
-	{ "de_overpass", { -4831f, 1781f, 5.2f, map_de_overpass, sizeof(map_de_overpass) } },
-	{ "de_overpass_2v2", { -4831f, 1781f, 5.2f, map_de_overpass_2v2, sizeof(map_de_overpass_2v2) } },
-	{ "de_poseidon", { -1046.3943f, 1166.3942f, 3.0124886f, map_de_poseidon, sizeof(map_de_poseidon) } },
-	{ "de_sanctum", { -1692.2153f, 654.57465f, 3.4071784f, map_de_sanctum, sizeof(map_de_sanctum) } },
-	{ "de_stronghold", { -2786.798f, 2598.281f, 2.9476247f, map_de_stronghold, sizeof(map_de_stronghold) } },
-	{ "de_train", { -2308f, 2078f, 4.082077f, map_de_train, sizeof(map_de_train) } },
-	{ "de_vertigo", { -3168f, 1762f, 4.0f, map_de_vertigo, sizeof(map_de_vertigo) } },
-	{ "de_warden", { -3150.9443f, 2681.3335f, 5.642361f, map_de_warden, sizeof(map_de_warden) } }
+			{ "ar_baggage", { -1316.0f, 1288.0f, 2.539062f, map_ar_baggage, sizeof(map_ar_baggage) } },
+			{ "ar_shoots", { -1368.0f, 1952.0f, 2.687500f, map_ar_shoots, sizeof(map_ar_shoots) } },
+			{ "ar_shoots_night", { -1368.0f, 1952.0f, 2.687500f, map_ar_shoots_night, sizeof(map_ar_shoots_night) } },
+			{ "cs_alpine", { -2107.1584f, 4687.119f, 6.5296063f, map_cs_alpine, sizeof(map_cs_alpine) } },
+			{ "cs_italy", { -2647.0f, 2592.0f, 4.6f, map_cs_italy, sizeof(map_cs_italy) } },
+			{ "cs_office", { -1838.0f, 1858.0f, 4.1f, map_cs_office, sizeof(map_cs_office) } },
+			{ "de_ancient", { -2953.0f, 2164.0f, 5.0f, map_de_ancient, sizeof(map_de_ancient) } },
+			{ "de_ancient_night", { -2953.0f, 2164.0f, 5.0f, map_de_ancient_night, sizeof(map_de_ancient_night) } },
+			{ "de_ancient_v1", { -2953.0f, 2164.0f, 5.0f, map_de_ancient_v1, sizeof(map_de_ancient_v1) } },
+			//{ "de_ancient_v2", { -2953.0f, 2164.0f, 5.0f, map_de_ancient_v2, sizeof(map_de_ancient_v2) } },
+			{ "de_anubis", { -2796.0f, 3328.0f, 5.22f, map_de_anubis, sizeof(map_de_anubis) } },
+			//{ "de_dust", { -2850.0f, 4073.0f, 6.0f, map_de_dust, sizeof(map_de_dust) } },
+			{ "de_dust2", { -2476.0f, 3239.0f, 4.4f, map_de_dust2, sizeof(map_de_dust2) } },
+			{ "de_inferno", { -2087.0f, 3870.0f, 4.9f, map_de_inferno, sizeof(map_de_inferno) } },
+			//{ "de_inferno_s2", { -2087.0f, 3870.0f, 4.9f, map_de_inferno_s2, sizeof(map_de_inferno_s2) } },
+			{ "de_mirage", { -3230.0f, 1713.0f, 5.0f, map_de_mirage, sizeof(map_de_mirage) } },
+			{ "de_nuke", { -3453.0f, 2887.0f, 7.0f, map_de_nuke, sizeof(map_de_nuke) } },
+			{ "de_overpass", { -4831.0f, 1781.0f, 5.2f, map_de_overpass, sizeof(map_de_overpass) } },
+			//{ "de_overpass_2v2", { -4831.0f, 1781.0f, 5.2f, map_de_overpass_2v2, sizeof(map_de_overpass_2v2) } },
+			{ "de_poseidon", { -1046.3943f, 1166.3942f, 3.0124886f, map_de_poseidon, sizeof(map_de_poseidon) } },
+			//{ "de_sanctum", { -1692.2153f, 654.57465f, 3.4071784f, map_de_sanctum, sizeof(map_de_sanctum) } },
+			{ "de_stronghold", { -2786.798f, 2598.281f, 2.9476247f, map_de_stronghold, sizeof(map_de_stronghold) } },
+			{ "de_train", { -2308.0f, 2078.0f, 4.082077f, map_de_train, sizeof(map_de_train) } },
+			{ "de_vertigo", { -3168.0f, 1762.0f, 4.0f, map_de_vertigo, sizeof(map_de_vertigo) } },
+			{ "de_warden", { -3150.9443f, 2681.3335f, 5.642361f, map_de_warden, sizeof(map_de_warden) } }
 		};
 		return database;
 	}
