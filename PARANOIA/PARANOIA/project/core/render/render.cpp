@@ -159,6 +159,8 @@ void render::run()
 
                 // pass the calculated map string to the radar
                 features::misc::g_radar.update_map(display_map);
+                // FIX: added the missing render call for the radar
+                features::misc::g_radar.on_render();
                 
                 features::esp::g_player.on_render();
                 features::esp::g_item.on_render();
