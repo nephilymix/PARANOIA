@@ -62,6 +62,8 @@ namespace features::misc {
 
 	void radar::update_map(const std::string& map_name)
 	{
+		if (!settings::g_misc.m_radar.enabled)
+			return;
 		// do not recreate texture if map is the same
 		if (map_name == this->m_last_map_name)
 			return;
