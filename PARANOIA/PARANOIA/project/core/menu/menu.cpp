@@ -772,7 +772,8 @@ void menu::draw_misc()
 	auto& gr = settings::g_misc.m_grenades;
 
 	zui::checkbox(ecrypt("spectators list##misc"), settings::g_misc.m_spectators);
-
+	zui::checkbox(ecrypt("2d radar##misc"), settings::g_misc.m_radar.enabled);
+	
 	if (zui::begin_group_box(ecrypt("grenade prediction"), col_w))
 	{
 		zui::checkbox(ecrypt("enabled##gr"), gr.enabled);
